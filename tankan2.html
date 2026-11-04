@@ -1,0 +1,459 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>片流れ単管小屋</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Layout: 3D viewport framed like a drawing sheet on the left, spec panel on the right; the panel stacks under the viewport on phones */
+:root{
+  --bg:#e7eae8; --panel:#f5f6f4; --ink:#1b2125; --muted:#56626a; --line:#c9d0cd;
+  --accent:#f0a400; --on-accent:#1b2125; --tint:rgba(240,164,0,.16);
+  --scene:#dde3e1; --ground:#cbc4b6; --grid-a:#968f81; --grid-b:#b3ac9f; --dim:#24506f;
+  --f-body:"BIZ UDPGothic","Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101417; --panel:#171c20; --ink:#e3e8e9; --muted:#98a4aa; --line:#2b3338;
+  --accent:#f4b42c; --on-accent:#14181b; --tint:rgba(244,180,44,.16);
+  --scene:#141a1e; --ground:#33312c; --grid-a:#58554d; --grid-b:#413f3a; --dim:#a9cbe2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101417; --panel:#171c20; --ink:#e3e8e9; --muted:#98a4aa; --line:#2b3338;
+  --accent:#f4b42c; --on-accent:#14181b; --tint:rgba(244,180,44,.16);
+  --scene:#141a1e; --ground:#33312c; --grid-a:#58554d; --grid-b:#413f3a; --dim:#a9cbe2; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.6;
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+.viewport{position:relative;min-width:0;min-height:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--scene)}
+#scene{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#scene:active{cursor:grabbing}
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tag{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;line-height:1.3;font-weight:700;padding:3px 7px;border-radius:4px;background:var(--panel);color:var(--dim);border:1px solid var(--line)}
+.chip{position:absolute;font-size:12px;line-height:1.4;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 9px;pointer-events:none}
+.chip.hint{left:12px;bottom:12px;max-width:calc(100% - 24px)}
+.chip.scale{right:12px;top:12px}
+.err{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted)}
+.panel{min-width:0;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 18px;display:flex;flex-direction:column;gap:16px}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.08em;color:var(--muted)}
+h1{margin:2px 0 6px;font-size:24px;line-height:1.25;font-weight:700;text-wrap:balance}
+.spec{margin:0;font-family:var(--f-num);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sec{border-top:1px solid var(--line);padding-top:14px}
+.sec h2{margin:0 0 8px;font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg)}
+.seg button{flex:1;min-width:0;font:inherit;font-size:13px;color:var(--ink);background:transparent;border:0;padding:8px 4px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);font-weight:700}
+.seg button:focus-visible{outline:2px solid var(--ink);outline-offset:-3px}
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:9px 12px}
+.tg{position:relative;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;user-select:none}
+.tg input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.tg .sw{flex:none;width:30px;height:18px;border-radius:9px;background:var(--line);position:relative;transition:background .15s}
+.tg .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.1);transition:transform .15s}
+.tg input:checked+.sw{background:var(--accent)}
+.tg input:checked+.sw::after{transform:translateX(12px)}
+.tg input:focus-visible+.sw{outline:2px solid var(--ink);outline-offset:2px}
+.tablewrap{overflow-x:auto}
+.parts{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.parts th{font-size:11.5px;color:var(--muted);font-weight:400;text-align:left;padding:0 6px 6px;border-bottom:1px solid var(--line)}
+.parts td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.parts .num{text-align:right;font-family:var(--f-num);white-space:nowrap}
+.parts tbody tr{cursor:pointer}
+.parts tbody tr:hover,.parts tbody tr:focus-visible,.parts tbody tr.on{background:var(--tint);outline:none}
+.parts tbody tr.on .pname{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:3px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);margin-top:5px}
+.pname{display:block;font-weight:700}
+.pnote{display:block;font-size:11.5px;color:var(--muted);line-height:1.4}
+.total{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding-top:10px;font-weight:700}
+.total .num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.small{margin:6px 0 0;font-size:12px;color:var(--muted)}
+.note{margin:0;font-size:12px;color:var(--muted);padding:10px 12px;border:1px dashed var(--line);border-radius:8px}
+@media (max-width:860px){
+  html,body{height:auto}
+  .app{display:flex;flex-direction:column;height:auto}
+  .viewport{height:62svh;min-height:320px}
+  .panel{overflow:visible}
+}
+@media (prefers-reduced-motion: reduce){.tg .sw,.tg .sw::after{transition:none}}
+</style>
+
+<div class="app">
+  <div class="viewport" id="vp">
+    <canvas id="scene" aria-label="単管小屋の3Dモデル。ドラッグで回転できます"></canvas>
+    <div class="labels" id="labels"></div>
+    <div class="chip scale">1マス = 1m</div>
+    <div class="chip hint" id="hint">ドラッグ:回転 ・ ホイール:拡大縮小 ・ 右ドラッグ:移動</div>
+    <div class="err" id="err" hidden>3D表示を読み込めませんでした。通信環境を確認して、ページを再読み込みしてください。</div>
+  </div>
+
+  <aside class="panel">
+    <header>
+      <p class="eyebrow">単管 φ48.6mm ・ 片流れ屋根 ・ 前面開放</p>
+      <h1>片流れ単管小屋</h1>
+      <p class="spec" id="spec"></p>
+    </header>
+
+    <section class="sec">
+      <h2>幅</h2>
+      <div class="seg" id="wseg">
+        <button type="button" id="w8" data-w="8" aria-pressed="true">8m(柱5列)</button>
+        <button type="button" id="w10" data-w="10" aria-pressed="false">10m(柱6列)</button>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>視点</h2>
+      <div class="seg" id="vseg">
+        <button type="button" id="v-iso" data-v="iso" aria-pressed="true">斜め</button>
+        <button type="button" id="v-front" data-v="front" aria-pressed="false">正面</button>
+        <button type="button" id="v-side" data-v="side" aria-pressed="false">側面</button>
+        <button type="button" id="v-top" data-v="top" aria-pressed="false">真上</button>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>表示</h2>
+      <div class="toggles">
+        <label class="tg"><input type="checkbox" id="t-roof" checked><span class="sw"></span>屋根</label>
+        <label class="tg"><input type="checkbox" id="t-walls" checked><span class="sw"></span>壁</label>
+        <label class="tg"><input type="checkbox" id="t-color" checked><span class="sw"></span>部材を色分け</label>
+        <label class="tg"><input type="checkbox" id="t-dims" checked><span class="sw"></span>寸法</label>
+        <label class="tg"><input type="checkbox" id="t-under"><span class="sw"></span>地中を透かす</label>
+        <label class="tg"><input type="checkbox" id="t-person"><span class="sw"></span>人物(175cm)</label>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>単管 長さ × 本数</h2>
+      <div class="tablewrap">
+        <table class="parts">
+          <thead><tr><th></th><th>部材</th><th class="num">長さ</th><th class="num">本数</th></tr></thead>
+          <tbody id="parts"></tbody>
+        </table>
+      </div>
+      <div class="total"><span>合計</span><span class="num" id="total"></span></div>
+      <p class="small" id="clamps"></p>
+      <p class="small">行にカーソルを合わせると、その部材を3Dで強調します。クリックで固定。</p>
+    </section>
+
+    <p class="note">構造計算をしていない目安です。施工前に、建築・施工に詳しい人の確認を受けてください。</p>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+const errBox = document.getElementById('err');
+if(!window.THREE || !THREE.OrbitControls){ errBox.hidden = false; return; }
+
+const CFG = {8:{n:5,S:7.8,long:4.0}, 10:{n:6,S:9.8,long:5.0}};
+const CAT = {col:'#2f6fde', beam:'#e08a2b', rafter:'#d64545', purlin:'#23a172', girt:'#8a5cd6', brace:'#e04c9a', knee:'#14a3b8'};
+const CAT_OF = {colF:'col', colR:'col', beam:'beam', rafter:'rafter', purlin:'purlin', girtR:'girt', girtS:'girt', brace:'brace', knee:'knee'};
+const PARTS = (n,long)=>[
+  {id:'colF',   cat:'col',    name:'前柱',      len:3.5,  qty:n,     note:'地上3.0m+地中0.5m'},
+  {id:'colR',   cat:'col',    name:'後柱',      len:3.0,  qty:n,     note:'地上2.5m+地中0.5m'},
+  {id:'beam',   cat:'beam',   name:'桁',        len:long, qty:4,     note:'前後の柱頭をつなぐ。2本継ぎ'},
+  {id:'rafter', cat:'rafter', name:'垂木',      len:2.5,  qty:n,     note:'屋根の前後方向の骨'},
+  {id:'purlin', cat:'purlin', name:'母屋',      len:long, qty:12,    note:'屋根の横材6段。2本継ぎ'},
+  {id:'girtR',  cat:'girt',   name:'後壁 胴縁', len:long, qty:6,     note:'3段。2本継ぎ'},
+  {id:'girtS',  cat:'girt',   name:'側壁 胴縁', len:2.5,  qty:8,     note:'左右各4段'},
+  {id:'brace',  cat:'brace',  name:'筋交い',    len:3.5,  qty:6,     note:'後壁2・側壁2・屋根2'},
+  {id:'knee',   cat:'knee',   name:'方杖',      len:1.0,  qty:2*n-2, note:'前面の柱と桁の斜め補強'}
+];
+const state = {W:8, view:'iso', color:true, roof:true, walls:true, dims:true, under:false, person:false, hover:null, pin:null};
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const vp = document.getElementById('vp');
+const canvas = document.getElementById('scene');
+const labelsBox = document.getElementById('labels');
+let renderer;
+try{ renderer = new THREE.WebGLRenderer({canvas, antialias:true}); }catch(e){ errBox.hidden = false; return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#dde3e1');
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI*0.49; controls.minDistance = 2; controls.maxDistance = 40;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8478, 0.95));
+const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+sun.position.set(-6, 12, 8); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, {left:-9, right:9, top:9, bottom:-9, near:1, far:40});
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+const groundMat = new THREE.MeshStandardMaterial({color:'#cbc4b6', roughness:1, metalness:0, transparent:true, opacity:1});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), groundMat);
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+let grid = null;
+
+const steel = new THREE.MeshStandardMaterial({color:'#c4c9cd', roughness:0.42, metalness:0.25});
+const catMats = {}; for(const k in CAT) catMats[k] = new THREE.MeshStandardMaterial({color:CAT[k], roughness:0.5, metalness:0.1});
+const AUX = {
+  clamp: new THREE.MeshStandardMaterial({color:'#6b7277', roughness:0.5, metalness:0.3}),
+  root:  new THREE.MeshStandardMaterial({color:'#a29f97', roughness:1, metalness:0})
+};
+AUX.joint = AUX.clamp;
+const dimMat = new THREE.MeshStandardMaterial({color:'#9aa0a4', transparent:true, opacity:0.12, depthWrite:false});
+const roofMat = new THREE.MeshStandardMaterial({color:'#cfe6f5', roughness:0.25, metalness:0, transparent:true, opacity:0.42, side:THREE.DoubleSide, depthWrite:false});
+const wallMat = new THREE.MeshStandardMaterial({color:'#eef0ec', roughness:0.6, metalness:0, transparent:true, opacity:0.78, side:THREE.DoubleSide, depthWrite:false});
+const dimLineMat = new THREE.LineBasicMaterial({color:'#24506f'});
+const siteMat = new THREE.LineDashedMaterial({color:'#24506f', dashSize:0.16, gapSize:0.1, transparent:true, opacity:0.7});
+
+const R = 0.0243, D = 0.0486, ZF = 1.1, ZR = -1.1, HF = 3.0, HR = 2.5;
+const UP = new THREE.Vector3(0,1,0);
+const v3 = (x,y,z)=>new THREE.Vector3(x,y,z);
+const pipeGeo = new THREE.CylinderGeometry(R, R, 1, 12);
+const sleeveGeo = new THREE.CylinderGeometry(R*1.45, R*1.45, 1, 12);
+const clampGeo = new THREE.BoxGeometry(0.075, 0.075, 0.075);
+const rootGeo = new THREE.CylinderGeometry(0.14, 0.16, 0.6, 16);
+
+const person = new THREE.Group();
+{ const pm = new THREE.MeshStandardMaterial({color:'#4f6475', roughness:0.8});
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 1.5, 16), pm); body.position.y = 0.75;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), pm); head.position.y = 1.64;
+  body.castShadow = head.castShadow = true; person.add(body, head); scene.add(person); }
+
+const root = new THREE.Group(); scene.add(root);
+let G = {}, pipes = [], disposables = [], labels = [];
+
+function addMesh(geo, part, pos){ const m = new THREE.Mesh(geo, steel); if(pos) m.position.copy(pos); m.castShadow = true; m.receiveShadow = true; m.userData.part = part; G.frame.add(m); pipes.push(m); return m; }
+function addPipe(a, b, part, geo){
+  const d = new THREE.Vector3().subVectors(b, a); const L = d.length();
+  const m = addMesh(geo||pipeGeo, part);
+  m.scale.set(1, L, 1); m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(UP, d.normalize());
+  return m;
+}
+const addClamp = p => addMesh(clampGeo, 'clamp', p);
+const joint = (y, z) => addPipe(v3(0.05, y, z), v3(0.19, y, z), 'joint', sleeveGeo);
+
+function corrugated(O, U, V, N, uLen, vLenFn, pitch, amp){
+  const segU = Math.ceil(uLen/pitch*6), pos = [], idx = [];
+  for(let i=0;i<=segU;i++){
+    const u = uLen*i/segU, w = amp*Math.sin(2*Math.PI*u/pitch), vl = vLenFn(u);
+    for(const v of [0, vl]) pos.push(O.x+U.x*u+V.x*v+N.x*w, O.y+U.y*u+V.y*v+N.y*w, O.z+U.z*u+V.z*v+N.z*w);
+  }
+  for(let i=0;i<segU;i++){ const a=i*2; idx.push(a, a+2, a+1, a+1, a+2, a+3); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  disposables.push(g); return g;
+}
+function line(pts, mat){ const g = new THREE.BufferGeometry().setFromPoints(pts); disposables.push(g); const l = new THREE.Line(g, mat||dimLineMat); G.dims.add(l); return l; }
+
+function build(){
+  root.clear(); disposables.forEach(g=>g.dispose()); disposables = []; pipes = []; labels = []; labelsBox.textContent = '';
+  const W = state.W, {n, S} = CFG[W];
+  G = {frame:new THREE.Group(), roof:new THREE.Group(), walls:new THREE.Group(), dims:new THREE.Group()};
+  root.add(G.frame, G.roof, G.walls, G.dims);
+  const xs = Array.from({length:n}, (_,i)=>-S/2 + i*S/(n-1));
+  const xe = S/2 + 0.08, xw = S/2 + D + R + 0.015;
+
+  xs.forEach(x=>{
+    addPipe(v3(x,-0.5,ZF), v3(x,HF,ZF), 'colF');
+    addPipe(v3(x,-0.5,ZR), v3(x,HR,ZR), 'colR');
+    [ZF,ZR].forEach(z=>{ const r = addMesh(rootGeo, 'root', v3(x,-0.25,z)); r.castShadow = false; });
+  });
+
+  const ybF = HF-0.06, zbF = ZF+D, ybR = HR-0.06, zbR = ZR-D;
+  addPipe(v3(-xe,ybF,zbF), v3(xe,ybF,zbF), 'beam'); joint(ybF, zbF);
+  addPipe(v3(-xe,ybR,zbR), v3(xe,ybR,zbR), 'beam'); joint(ybR, zbR);
+  xs.forEach(x=>{ addClamp(v3(x,ybF,ZF+D/2)); addClamp(v3(x,ybR,ZR-D/2)); });
+
+  const Ay = ybR+D, By = ybF+D, k = (By-Ay)/(zbF-zbR), th = Math.atan(k);
+  const ry = z => Ay + k*(z-zbR);
+  const z1 = zbF+0.06, z0 = z1 - 2.5*Math.cos(th);
+  xs.forEach(x=>{
+    const xr = x+D;
+    addPipe(v3(xr,ry(z0),z0), v3(xr,ry(z1),z1), 'rafter');
+    addClamp(v3(xr,ry(zbF)-D/2,zbF)); addClamp(v3(xr,ry(zbR)-D/2,zbR));
+  });
+  for(let i=0;i<6;i++){
+    const z = z0+0.12 + (z1-0.05-(z0+0.12))*i/5, y = ry(z)+D;
+    addPipe(v3(-xe,y,z), v3(xe,y,z), 'purlin'); joint(y, z);
+    xs.forEach(x=>addClamp(v3(x+D, ry(z)+D/2, z)));
+  }
+  const Vd = v3(0,Math.sin(th),Math.cos(th)), Nd = v3(0,Math.cos(th),-Math.sin(th));
+  G.roof.add(new THREE.Mesh(corrugated(v3(-(S/2+0.1), ry(z0)+D+R+0.012, z0), v3(1,0,0), Vd, Nd, S+0.2, ()=>(z1-z0)/Math.cos(th), 0.076, 0.009), roofMat));
+
+  [0.15,1.0,1.85].forEach(y=>{
+    addPipe(v3(-(S/2+0.06),y,ZR-D), v3(S/2+0.06,y,ZR-D), 'girtR'); joint(y, ZR-D);
+    xs.forEach(x=>addClamp(v3(x,y,ZR-D/2)));
+  });
+  const zw = ZR-D-R-0.015;
+  G.walls.add(new THREE.Mesh(corrugated(v3(-xw,0.03,zw), v3(1,0,0), v3(0,1,0), v3(0,0,-1), 2*xw, ()=>ry(zw)+D-0.03, 0.076, 0.009), wallMat));
+  [-1,1].forEach(s=>{
+    [0.35,1.2,2.0,2.33].forEach(y=>{
+      addPipe(v3(s*(S/2+D),y,ZR-0.15), v3(s*(S/2+D),y,ZF+0.15), 'girtS');
+      addClamp(v3(s*(S/2+D/2),y,ZF)); addClamp(v3(s*(S/2+D/2),y,ZR));
+    });
+    const za = zw, zb = ZF+0.12;
+    G.walls.add(new THREE.Mesh(corrugated(v3(s*xw,0.03,za), v3(0,0,1), v3(0,1,0), v3(s,0,0), zb-za, u=>ry(za+u)+D-0.03, 0.076, 0.009), wallMat));
+  });
+
+  const zi = ZR+D;
+  addPipe(v3(xs[0],0.12,zi), v3(xs[1],HR-0.2,zi), 'brace');
+  addPipe(v3(xs[n-1],0.12,zi), v3(xs[n-2],HR-0.2,zi), 'brace');
+  [-1,1].forEach(s=>addPipe(v3(s*(S/2-D),0.12,ZR), v3(s*(S/2-D),HF-0.25,ZF), 'brace'));
+  const yu = z => ry(z)-D, za = z0+0.15, zb = z1-0.15;
+  addPipe(v3(xs[0]+D,yu(za),za), v3(xs[1]+D,yu(zb),zb), 'brace');
+  addPipe(v3(xs[n-1]+D,yu(za),za), v3(xs[n-2]+D,yu(zb),zb), 'brace');
+
+  const zk = ZF+D;
+  xs.forEach((x,i)=>{
+    if(i>0)   addPipe(v3(x,HF-0.72,zk), v3(x-0.66,ybF-0.03,zk), 'knee');
+    if(i<n-1) addPipe(v3(x,HF-0.72,zk), v3(x+0.66,ybF-0.03,zk), 'knee');
+  });
+
+  const y0 = 0.015, zf = 1.75, xd = S/2+0.75, xh = -S/2-0.6, t = 0.12;
+  line([v3(-S/2,y0,zf), v3(S/2,y0,zf)]);
+  [-S/2,S/2].forEach(x=>{ line([v3(x,y0,ZF+0.1), v3(x,y0,zf+t)]); });
+  line([v3(xd,y0,ZR), v3(xd,y0,ZF)]);
+  [ZR,ZF].forEach(z=>line([v3(xd-t,y0,z), v3(xd+t,y0,z)]));
+  line([v3(xh,0,ZF), v3(xh,HF,ZF)]); line([v3(xh-t,HF,ZF), v3(xh+t,HF,ZF)]);
+  line([v3(xh,0,ZR), v3(xh,HR,ZR)]); line([v3(xh-t,HR,ZR), v3(xh+t,HR,ZR)]);
+  const site = line([v3(-W/2,0.01,-1.25), v3(W/2,0.01,-1.25), v3(W/2,0.01,1.25), v3(-W/2,0.01,1.25), v3(-W/2,0.01,-1.25)], siteMat);
+  site.computeLineDistances();
+
+  const slopeDeg = Math.round(Math.atan((HF-HR)/(ZF-ZR))*180/Math.PI);
+  [
+    [`柱芯 ${S.toFixed(1)}m`, v3(0,0.05,zf+0.3)],
+    ['奥行 2.2m(柱芯)', v3(xd+0.2,0.05,0)],
+    ['前 3.0m', v3(xh,HF+0.25,ZF)],
+    ['後 2.5m', v3(xh,HR+0.25,ZR)],
+    [`勾配 約${slopeDeg}° 雨雪は後ろへ`, v3(0,ry(0)+0.5,-0.1)],
+    ['前面 開放', v3(0,1.2,ZF+0.35)],
+    [`敷地 ${W}.0m × 2.5m`, v3(-W/2+1.1,0.05,-1.6)]
+  ].forEach(([text,p])=>{ const el = document.createElement('div'); el.className = 'tag'; el.textContent = text; labelsBox.appendChild(el); labels.push({el, p}); });
+
+  person.position.set(S/2-1.0, 0, -0.55);
+  Object.assign(sun.shadow.camera, {left:-(S/2+2), right:S/2+2}); sun.shadow.camera.updateProjectionMatrix();
+  applyToggles(); applyMaterials();
+}
+
+function applyMaterials(){
+  const id = state.hover || state.pin;
+  pipes.forEach(m=>{
+    const p = m.userData.part, aux = AUX[p];
+    if(id && p !== id){ m.material = dimMat; m.castShadow = false; }
+    else { m.material = aux || (state.color ? catMats[CAT_OF[p]] : steel); m.castShadow = p !== 'root'; }
+  });
+  roofMat.opacity = id ? 0.08 : 0.42; wallMat.opacity = id ? 0.08 : 0.78;
+}
+function applyToggles(){
+  if(G.roof) G.roof.visible = state.roof;
+  if(G.walls) G.walls.visible = state.walls;
+  if(G.dims) G.dims.visible = state.dims;
+  labelsBox.hidden = !state.dims;
+  person.visible = state.person;
+  groundMat.opacity = state.under ? 0.3 : 1; groundMat.depthWrite = !state.under;
+}
+
+function themeColors(){
+  const cs = getComputedStyle(document.documentElement), g = k => cs.getPropertyValue(k).trim();
+  scene.background.set(g('--scene')); groundMat.color.set(g('--ground'));
+  dimLineMat.color.set(g('--dim')); siteMat.color.set(g('--dim'));
+  if(grid){ scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+  grid = new THREE.GridHelper(40, 40, g('--grid-a'), g('--grid-b'));
+  grid.position.y = 0.004; grid.material.transparent = true; grid.material.opacity = 0.6; grid.material.depthWrite = false;
+  scene.add(grid);
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeColors);
+new MutationObserver(themeColors).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+
+function fitDist(hw, hh){ const t = Math.tan(THREE.MathUtils.degToRad(camera.fov/2)); return Math.max(hw/(t*camera.aspect), hh/t); }
+function preset(name){
+  const S = CFG[state.W].S;
+  const P = {
+    iso:   [v3(-0.62,0.42,0.66), v3(0,1.3,0),  fitDist(S/2+1.2,2.6)*0.95+2],
+    front: [v3(0,0.06,1),        v3(0,1.5,0),  fitDist(S/2+1.0,2.2)+1.25],
+    side:  [v3(1,0.08,0),        v3(0,1.5,0),  fitDist(2.4,2.3)+S/2],
+    top:   [v3(0,1,0.001),       v3(0,0,0),    fitDist(S/2+1.0,2.2)]
+  }[name];
+  return [P[1].clone().addScaledVector(P[0].normalize(), P[2]), P[1]];
+}
+let tween = null;
+function setViewPressed(name){ document.querySelectorAll('#vseg button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.v === name))); }
+function goView(name, instant){
+  state.view = name; setViewPressed(name);
+  const [pos, tgt] = preset(name);
+  if(instant || reduceMotion){ tween = null; camera.position.copy(pos); controls.target.copy(tgt); controls.update(); return; }
+  tween = {s:performance.now(), p0:camera.position.clone(), t0:controls.target.clone(), p1:pos, t1:tgt};
+}
+controls.addEventListener('start', ()=>{ tween = null; state.view = null; setViewPressed(null); });
+
+function resize(){
+  const w = vp.clientWidth, h = vp.clientHeight; if(!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(vp);
+
+const tmp = new THREE.Vector3();
+function updateLabels(){
+  if(!state.dims) return;
+  const w = vp.clientWidth, h = vp.clientHeight;
+  labels.forEach(l=>{
+    tmp.copy(l.p).project(camera);
+    const vis = tmp.z > -1 && tmp.z < 1;
+    l.el.style.visibility = vis ? 'visible' : 'hidden';
+    if(vis) l.el.style.transform = `translate(${((tmp.x+1)/2*w).toFixed(1)}px,${((1-tmp.y)/2*h).toFixed(1)}px) translate(-50%,-50%)`;
+  });
+}
+function loop(now){
+  if(tween){
+    const k = Math.min(1, (now-tween.s)/650), e = k<0.5 ? 4*k*k*k : 1-Math.pow(-2*k+2,3)/2;
+    camera.position.lerpVectors(tween.p0, tween.p1, e); controls.target.lerpVectors(tween.t0, tween.t1, e);
+    if(k >= 1) tween = null;
+  }
+  controls.update(); renderer.render(scene, camera); updateLabels();
+  requestAnimationFrame(loop);
+}
+
+const tbody = document.getElementById('parts');
+function renderPanel(){
+  const {n, long} = CFG[state.W], parts = PARTS(n, long);
+  tbody.innerHTML = parts.map(p=>`<tr data-part="${p.id}" tabindex="0" aria-selected="${state.pin===p.id}"${state.pin===p.id?' class="on"':''}><td><span class="dot" style="--c:${CAT[p.cat]}"></span></td><td><span class="pname">${p.name}</span><span class="pnote">${p.note}</span></td><td class="num">${p.len.toFixed(1)}m</td><td class="num">${p.qty}</td></tr>`).join('');
+  const count = parts.reduce((a,p)=>a+p.qty, 0), len = parts.reduce((a,p)=>a+p.len*p.qty, 0);
+  document.getElementById('total').textContent = `${count}本 ・ 約${Math.round(len)}m`;
+  const ortho = Math.ceil((2*n+2*n+6*n+3*n+16)*1.1/5)*5, swivel = Math.ceil((12+2*(2*n-2))*1.1/2)*2;
+  document.getElementById('clamps').textContent = `金具の目安(予備1割込み):直交クランプ 約${ortho}個 ・ 自在クランプ 約${swivel}個 ・ ジョイント 12個`;
+  document.getElementById('spec').textContent = `全幅 約${state.W}.0m ・ 奥行 2.5m以内 ・ 高さ 前3.0m/後2.5m`;
+}
+function refreshHL(){
+  applyMaterials();
+  tbody.querySelectorAll('tr').forEach(tr=>{ const on = tr.dataset.part === state.pin; tr.classList.toggle('on', on); tr.setAttribute('aria-selected', String(on)); });
+}
+tbody.addEventListener('pointerover', e=>{ const tr = e.target.closest('tr'); if(tr && e.pointerType !== 'touch' && state.hover !== tr.dataset.part){ state.hover = tr.dataset.part; refreshHL(); } });
+tbody.addEventListener('pointerleave', ()=>{ if(state.hover){ state.hover = null; refreshHL(); } });
+tbody.addEventListener('click', e=>{ const tr = e.target.closest('tr'); if(!tr) return; state.pin = state.pin === tr.dataset.part ? null : tr.dataset.part; refreshHL(); });
+tbody.addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); const tr = e.target.closest('tr'); if(tr) tr.click(); } });
+tbody.addEventListener('focusin', e=>{ const tr = e.target.closest('tr'); if(tr){ state.hover = tr.dataset.part; refreshHL(); } });
+tbody.addEventListener('focusout', ()=>{ state.hover = null; refreshHL(); });
+
+document.getElementById('wseg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  const W = Number(b.dataset.w); if(W === state.W) return;
+  state.W = W;
+  document.querySelectorAll('#wseg button').forEach(x=>x.setAttribute('aria-pressed', String(x === b)));
+  build(); renderPanel(); goView(state.view || 'iso');
+});
+document.getElementById('vseg').addEventListener('click', e=>{ const b = e.target.closest('button'); if(b) goView(b.dataset.v); });
+[['t-roof','roof'],['t-walls','walls'],['t-dims','dims'],['t-under','under'],['t-person','person']].forEach(([id,key])=>{
+  document.getElementById(id).addEventListener('change', e=>{ state[key] = e.target.checked; applyToggles(); });
+});
+document.getElementById('t-color').addEventListener('change', e=>{ state.color = e.target.checked; applyMaterials(); });
+
+if(matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = '1本指:回転 ・ 2本指:拡大縮小と移動';
+
+themeColors(); resize(); build(); renderPanel(); goView('iso', true);
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

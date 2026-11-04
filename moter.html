@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コイルのトルク シミュレーター</title>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --card2: #111a2e; --line: #334155;
+    --text: #f1f5f9; --sub: #94a3b8;
+    --north: #ef4444; --south: #3b82f6; --field: #7dd3fc;
+    --force: #fbbf24; --arm: #34d399; --torque: #f472b6; --coil: #fb923c;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  }
+  header { padding: 10px 16px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+  header h1 { margin: 0; font-size: 18px; color: #60a5fa; }
+  header p { margin: 0; font-size: 12px; color: var(--sub); }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 12px 16px 24px; }
+  .viz, .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .canvas-wrap { position: relative; height: 58vh; min-height: 320px; overflow: hidden; background: #0a1020; }
+  .graph-wrap { position: relative; height: 210px; overflow: hidden; }
+  .canvas-wrap canvas, .graph-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #main { touch-action: none; cursor: grab; }
+  #main.dragging { cursor: grabbing; }
+  .legend { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; color: #cbd5e1; pointer-events: none; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; background: rgba(15, 23, 42, .8); padding: 2px 6px; border-radius: 6px; }
+  .sw { display: inline-block; width: 14px; height: 4px; border-radius: 2px; }
+  @media (min-width: 980px) {
+    body { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+    .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 400px; padding-bottom: 12px; }
+    .viz { min-height: 0; }
+    .canvas-wrap { flex: 1; height: auto; min-height: 0; }
+    .panel { min-height: 0; overflow-y: auto; padding-right: 4px; }
+  }
+  .box { padding: 14px; }
+  .label { font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+  .big { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; }
+  .big .num { font-size: 30px; font-weight: 700; color: var(--torque); font-variant-numeric: tabular-nums; }
+  .big .unit { font-size: 14px; color: var(--sub); }
+  .dir { font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: rgba(244, 114, 182, .15); color: var(--torque); }
+  .formula { margin-top: 10px; font-size: 13px; line-height: 1.85; color: #e2e8f0; background: var(--card2); border-left: 4px solid var(--torque); padding: 8px 10px; border-radius: 6px; overflow-x: auto; white-space: nowrap; }
+  .formula b { color: var(--torque); }
+  .note { font-size: 11px; color: var(--sub); margin-top: 6px; line-height: 1.6; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mini { padding: 10px 12px; }
+  .mini .v { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mini .s { font-size: 10px; color: var(--sub); margin-top: 2px; line-height: 1.5; }
+  .feel p { margin: 6px 0 0; font-size: 13px; line-height: 1.7; }
+  .feel b { color: var(--force); }
+  .sec-title { font-size: 13px; font-weight: 700; margin: 0 0 10px; color: #cbd5e1; }
+  .ctl + .ctl { margin-top: 12px; }
+  .ctl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; margin-bottom: 2px; }
+  .ctl-head output { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  input[type=range] { width: 100%; accent-color: #60a5fa; height: 24px; margin: 0; }
+  .hint { font-size: 11px; color: var(--sub); margin: 2px 0 0; line-height: 1.6; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { flex: 1; min-width: 120px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #273449; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn.primary { background: #2563eb; border-color: #2563eb; }
+  .btn.primary.running { background: #b91c1c; border-color: #b91c1c; }
+  .chk { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.5; margin-top: 10px; cursor: pointer; }
+  .chk input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: #60a5fa; flex: none; }
+  details.guide summary { cursor: pointer; padding: 12px 14px; font-weight: 700; font-size: 14px; color: #60a5fa; }
+  .guide-body { padding: 0 14px 14px; font-size: 13px; line-height: 1.8; color: #cbd5e1; }
+  .guide-body h3 { font-size: 13px; color: #fff; margin: 14px 0 4px; }
+  .guide-body p { margin: 4px 0; }
+  .guide-body .eq { background: var(--card2); border-left: 4px solid #60a5fa; padding: 6px 10px; border-radius: 6px; margin: 6px 0; color: #e2e8f0; }
+  .guide-body ul { padding-left: 18px; margin: 4px 0; }
+  .guide-body strong { color: #fff; }
+  sup { font-size: 0.7em; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>コイルにはたらくトルク シミュレーター</h1>
+  <p>磁界の中のコイル　T = NBIA cosθ [N·m]</p>
+</header>
+
+<main class="layout">
+  <section class="viz">
+    <div class="card canvas-wrap">
+      <canvas id="main" role="img" aria-label="磁石の間で回るコイルの断面図"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--field)"></i>磁力線（本数 ∝ B）</span>
+        <span><i class="sw" style="background:var(--force)"></i>力 F</span>
+        <span><i class="sw" style="background:var(--arm)"></i>腕の長さ</span>
+        <span><i class="sw" style="background:var(--torque)"></i>トルク T</span>
+        <span>⊙ 電流が手前へ</span>
+        <span>⊗ 電流が奥へ</span>
+        <span>◎ 回転軸</span>
+        <span>コイルはドラッグで回せます</span>
+      </div>
+    </div>
+    <div class="card graph-wrap">
+      <canvas id="graph" role="img" aria-label="トルク T と角度 θ のグラフ"></canvas>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="card box">
+      <div class="label">コイルを回す力（トルク） T</div>
+      <div class="big"><span class="num" id="outT">0</span><span class="unit">N·m</span><span class="dir" id="outDir"></span></div>
+      <div class="formula" id="formula"></div>
+      <div class="note" id="formulaNote"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card mini">
+        <div class="label">辺1本にはたらく力 F</div>
+        <div class="v" id="outF" style="color:var(--force)"></div>
+        <div class="s">N（F = NBIl：θ を変えても一定）</div>
+        <div class="s" id="arrowNote" style="color:var(--force)"></div>
+      </div>
+      <div class="card mini">
+        <div class="label">腕の長さ</div>
+        <div class="v" id="outArm" style="color:var(--arm)"></div>
+        <div class="s">cm（(b/2) cosθ）</div>
+      </div>
+      <div class="card mini">
+        <div class="label">cosθ</div>
+        <div class="v" id="outCos"></div>
+        <div class="s">θ = <span id="outDeg"></span></div>
+      </div>
+      <div class="card mini">
+        <div class="label">最大トルク（θ = 0°）</div>
+        <div class="v" id="outTmax" style="color:var(--torque)"></div>
+        <div class="s">N·m（NBIA）</div>
+      </div>
+    </div>
+
+    <div class="card box feel">
+      <div class="label">体感に置きかえると（g = 9.8 m/s²）</div>
+      <p id="feelT"></p>
+      <p id="feelF"></p>
+    </div>
+
+    <div class="card box">
+      <p class="sec-title">条件を変える</p>
+      <div class="ctl">
+        <div class="ctl-head"><label for="sN">巻き数 N</label><output id="vN"></output></div>
+        <input type="range" id="sN" min="1" max="100" step="1" value="50">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="sB">磁束密度 B</label><output id="vB"></output></div>
+        <input type="range" id="sB" min="0.1" max="1.0" step="0.05" value="0.5">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="sI">電流 I</label><output id="vI"></output></div>
+        <input type="range" id="sI" min="0.1" max="5.0" step="0.1" value="2.0">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="sl">コイルの縦 l（導体の長さ・紙面に垂直）</label><output id="vl"></output></div>
+        <input type="range" id="sl" min="2" max="10" step="0.5" value="5">
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="sb">コイルの横 b（回転軸をはさむ幅）</label><output id="vb"></output></div>
+        <input type="range" id="sb" min="2" max="10" step="0.5" value="4">
+        <p class="hint" id="vA"></p>
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><label for="sTheta">角度 θ</label><output id="vTheta"></output></div>
+        <input type="range" id="sTheta" min="0" max="360" step="1" value="0">
+        <p class="hint">θ：コイルの面と磁界（N→S）のなす角</p>
+      </div>
+    </div>
+
+    <div class="card box">
+      <p class="sec-title">動かしてみる</p>
+      <div class="btns">
+        <button class="btn primary" id="bRun">▶ 手を離す</button>
+        <button class="btn" id="bReset">θ = 0° に戻す</button>
+      </div>
+      <p class="hint">「手を離す」と、トルクでコイルが回り出します（回る速さは見やすさ優先の目安）。</p>
+      <label class="chk"><input type="checkbox" id="cArm" checked>腕の長さを表示</label>
+      <label class="chk"><input type="checkbox" id="cFleming">フレミングの左手の法則を表示</label>
+      <label class="chk"><input type="checkbox" id="cReverse">電流の向きを反転</label>
+      <label class="chk"><input type="checkbox" id="cComm">整流子をつける（θ = 90°・270° で電流の向きが入れかわる）</label>
+    </div>
+
+    <details class="card guide">
+      <summary>解説ノート（式の意味）</summary>
+      <div class="guide-body">
+        <h3>1. 導体1本にはたらく力 F</h3>
+        <p>磁束密度 B [T] の磁界の中で、長さ l [m] の導線に電流 I [A] を流すと、F = B I l [N] の力がはたらきます。向きはフレミングの左手の法則で決まります。コイルの辺には導線が N 本ならんでいるので、辺全体では</p>
+        <div class="eq">F = N B I l [N]</div>
+
+        <h3>2. 回す力（トルク）＝ 力 × 腕の長さ</h3>
+        <p>腕の長さは「回転軸から、力の向きの線（作用線）までの距離」です。力 F は上下向きなので、腕は横方向の距離 (b/2) cosθ になります。</p>
+
+        <h3>3. 式をつなげる</h3>
+        <p>導体①と②の2本が、同じ向きにコイルを回すので</p>
+        <div class="eq">T = 2 × F × (b/2) cosθ = F b cosθ<br>　= N B I l b cosθ = N B I A cosθ [N·m]</div>
+        <p>（l × b = A：コイルの面積）</p>
+
+        <h3>4. θ = 90° で T = 0 になるのはなぜ？</h3>
+        <p>θ = 90° でも、力 F は同じ大きさではたらいています。しかし力の線が回転軸を通るので腕の長さが 0 になり、T = 0 になります。「手を離す」で試すと、コイルは面が磁界と垂直になる位置で止まります。</p>
+        <p>回り続けさせるには、半回転ごとに電流の向きを入れかえます。これが直流モーターの<strong>整流子</strong>のはたらきです（「整流子をつける」で確認できます）。</p>
+
+        <h3>5. 角度のとり方に注意</h3>
+        <p>この画面の θ は「コイルの面と磁界のなす角」です。教科書によっては「コイルの面に垂直な線（法線）と磁界のなす角 φ」を使い、T = NBIA sinφ と書きます。φ = 90° − θ なので、どちらも同じ意味です。</p>
+
+        <h3>6. 画面の見方</h3>
+        <ul>
+          <li>磁力線の本数は B に比例します。</li>
+          <li>黄色の矢印（力 F）の長さは F に比例します（2.5 N で基準の長さ）。長すぎ・短すぎのときは上限・下限の長さで表示し、注記が出ます。</li>
+          <li>緑の線が腕の長さ、ピンクの円弧がトルクです。円弧の長さは「そのときの最大トルクに対する割合」、矢印は回る向きを表します。</li>
+          <li>⊙ は電流が手前に向かって、⊗ は奥に向かって流れることを表します。</li>
+          <li>「手を離す」の回る速さは見やすさのために調整した目安で、実際のモーターの回転数ではありません。</li>
+        </ul>
+      </div>
+    </details>
+  </aside>
+</main>
+
+<script>
+(() => {
+  // ===== 定数 =====
+  const G = 9.8;            // 重力加速度 [m/s²]
+  const F_REF = 2.5;        // 力の矢印の基準 [N]（初期設定の F）
+  const J = 0.02;           // 表示用の慣性モーメント（回る速さの目安）
+  const ZETA = 0.4;         // 表示用の減衰の強さ
+  const OMEGA_MAX = 25;     // 表示用の角速度の上限 [rad/s]
+  const TAU = Math.PI * 2;
+  const COL = {
+    north: '#ef4444', south: '#3b82f6', field: '#7dd3fc', force: '#fbbf24',
+    arm: '#34d399', torque: '#f472b6', coil: '#fb923c', text: '#f1f5f9', sub: '#94a3b8', grid: '#334155'
+  };
+  const FONT = '"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif';
+
+  const S = {
+    N: 50, B: 0.5, I: 2.0, l: 5, b: 4, theta: 0,
+    reverse: false, comm: false, fleming: false, showArm: true,
+    running: false, omega: 0, runTime: 0
+  };
+  const geom = { cx: 0, cy: 0, half: 0, arrowNote: '' };
+  let dirty = true;
+
+  const $ = id => document.getElementById(id);
+  const norm = a => ((a % TAU) + TAU) % TAU;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const degOf = a => norm(a) * 180 / Math.PI;
+  const snap = a => norm(Math.round(a * 180 / Math.PI) * Math.PI / 180);
+  const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+
+  // ===== 物理量 =====
+  // s = +1：導体①の電流が手前向き（⊙）→ 導体①は上向きの力
+  function currentSign(c) {
+    const base = S.reverse ? -1 : 1;
+    return S.comm ? base * (c >= 0 ? 1 : -1) : base;
+  }
+  function cosClean(a) { const c = Math.cos(a); return Math.abs(c) < 1e-9 ? 0 : c; }
+
+  function physics() {
+    const l = S.l / 100, b = S.b / 100, A = l * b;
+    const F = S.N * S.B * S.I * l;
+    const Tmax = S.N * S.B * S.I * A;
+    const c = cosClean(S.theta);
+    const s = currentSign(c);
+    return { l, b, A, F, Tmax, c, s, T: s * Tmax * c, arm: (b / 2) * Math.abs(c) };
+  }
+  function torqueAtDeg(d, Tmax) {
+    const c = cosClean(d * Math.PI / 180);
+    return currentSign(c) * Tmax * c;
+  }
+
+  // ===== 数値の表示 =====
+  const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  function fmtNum(v, html) {
+    if (!v || !isFinite(v)) return '0';
+    const neg = v < 0, a = Math.abs(v);
+    const s = a.toPrecision(3);
+    let out = s;
+    if (a >= 1000 || a < 0.01 || s.includes('e')) {
+      const [m, e] = a.toExponential(2).split('e');
+      const ex = String(parseInt(e, 10));
+      out = html ? `${m}×10<sup>${ex.replace('-', '−')}</sup>` : `${m}×10${[...ex].map(ch => SUP[ch]).join('')}`;
+    }
+    return (neg ? '−' : '') + out;
+  }
+  function fmtFixed(v, d) {
+    if (Math.abs(v) < 0.5 * Math.pow(10, -d)) v = 0;
+    return (v < 0 ? '−' : '') + Math.abs(v).toFixed(d);
+  }
+  function tickFmt(v) {
+    if (v === 0) return '0';
+    const a = Math.abs(v);
+    if (a < 0.001 || a >= 1000) return fmtNum(v, false);
+    return (v < 0 ? '−' : '') + String(Number(a.toPrecision(3)));
+  }
+  function niceMax(v) {
+    if (!(v > 0)) return 1;
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
+    return 10 * p;
+  }
+  function gStr(g) {
+    if (g >= 1000) return (g / 1000).toFixed(2) + ' kg';
+    if (g >= 10) return Math.round(g) + ' g';
+    if (g >= 1) return g.toFixed(1) + ' g';
+    return g.toPrecision(2) + ' g';
+  }
+  function familiar(g) {
+    if (g < 1) return '1円玉1枚（1 g）より軽い';
+    if (g < 100) return `1円玉 約${Math.round(g)}枚分`;
+    if (g < 1500) return `硬式野球ボール 約${(g / 145).toFixed(1)}個分`;
+    return `2 L ペットボトル 約${(g / 2000).toFixed(1)}本分`;
+  }
+
+  // ===== キャンバス =====
+  function makeCanvas(id) {
+    const el = $(id), ctx = el.getContext('2d');
+    const o = { el, ctx, w: 0, h: 0 };
+    const fit = () => {
+      const r = el.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      o.w = r.width; o.h = r.height;
+      el.width = Math.max(1, Math.round(r.width * dpr));
+      el.height = Math.max(1, Math.round(r.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      dirty = true;
+    };
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(el);
+    window.addEventListener('resize', fit);
+    fit();
+    return o;
+  }
+  const main = makeCanvas('main');
+  const graph = makeCanvas('graph');
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function arrow(ctx, x1, y1, x2, y2, color, width, head) {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len < 0.5) return;
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    head = Math.min(head, len * 0.7);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x2 - Math.cos(ang) * head * 0.7, y2 - Math.sin(ang) * head * 0.7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - head * Math.cos(ang - 0.45), y2 - head * Math.sin(ang - 0.45));
+    ctx.lineTo(x2 - head * Math.cos(ang + 0.45), y2 - head * Math.sin(ang + 0.45));
+    ctx.closePath(); ctx.fill();
+  }
+  function label(ctx, text, x, y, color, size, align = 'center', bg = true) {
+    ctx.font = `700 ${size}px ${FONT}`;
+    ctx.textAlign = align; ctx.textBaseline = 'middle';
+    if (bg) {
+      const w = ctx.measureText(text).width + 8;
+      const x0 = align === 'center' ? x - w / 2 : align === 'right' ? x - w + 4 : x - 4;
+      ctx.fillStyle = 'rgba(10,16,32,0.8)';
+      ctx.fillRect(x0, y - size * 0.72, w, size * 1.44);
+    }
+    ctx.fillStyle = color; ctx.fillText(text, x, y);
+  }
+
+  // ===== 断面図 =====
+  function drawMain() {
+    const { ctx, w, h } = main;
+    if (!w || !h) return;
+    ctx.clearRect(0, 0, w, h);
+    const p = physics();
+    const cx = w / 2, cy = h / 2;
+    const magW = clamp(w * 0.1, 34, 90), magH = h * 0.74;
+    const gapL = 10 + magW, gapR = w - 10 - magW;
+    const top = cy - magH / 2, bot = cy + magH / 2;
+    const fs = clamp(Math.min(w, h) * 0.035, 11, 15);
+
+    // 磁力線（本数は B に比例）
+    const nLines = Math.max(1, Math.round(S.B * 14));
+    ctx.save(); ctx.globalAlpha = 0.45;
+    for (let i = 0; i < nLines; i++) {
+      const y = top + magH * (i + 0.5) / nLines;
+      ctx.strokeStyle = COL.field; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(gapL, y); ctx.lineTo(gapR, y); ctx.stroke();
+      for (const f of [0.14, 0.86]) {
+        const x = gapL + (gapR - gapL) * f;
+        arrow(ctx, x - 8, y, x + 6, y, COL.field, 1.5, 8);
+      }
+    }
+    ctx.restore();
+
+    // 磁石
+    const magnet = (x, color, text) => {
+      ctx.fillStyle = color; roundRect(ctx, x, top, magW, magH, 8); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `800 ${clamp(magW * 0.6, 22, 44)}px ${FONT}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, x + magW / 2, cy);
+    };
+    magnet(10, COL.north, 'N');
+    magnet(w - 10 - magW, COL.south, 'S');
+
+    // コイルの位置
+    const pxPerCm = Math.min((gapR - gapL) * 0.7, h * 0.64) / 10;
+    const half = (S.b / 2) * pxPerCm;
+    geom.cx = cx; geom.cy = cy; geom.half = half;
+    const ux = Math.cos(S.theta), uy = -Math.sin(S.theta);
+    const x1 = cx + half * ux, y1 = cy + half * uy;   // 導体①
+    const x2 = cx - half * ux, y2 = cy - half * uy;   // 導体②
+    const rc = clamp(Math.min(w, h) * 0.032, 9, 15);
+
+    // 力の矢印の長さ（F に比例）
+    const refLen = h * 0.12, maxLen = h * 0.2, minLen = 6;
+    let fLen = p.F / F_REF * refLen;
+    geom.arrowNote = '';
+    if (fLen > maxLen) { fLen = maxLen; geom.arrowNote = '※力が大きいため、矢印は上限の長さで表示中'; }
+    else if (fLen < minLen) { fLen = minLen; geom.arrowNote = '※力が小さいため、矢印は最小の長さで表示中'; }
+    const up1 = p.s > 0;
+
+    // 力の作用線と腕
+    if (S.showArm) {
+      ctx.save();
+      ctx.setLineDash([5, 5]); ctx.strokeStyle = COL.force; ctx.globalAlpha = 0.45; ctx.lineWidth = 1.5;
+      for (const x of [x1, x2]) { ctx.beginPath(); ctx.moveTo(x, top + 6); ctx.lineTo(x, bot - 6); ctx.stroke(); }
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = COL.arm; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x2, cy); ctx.lineTo(x1, cy); ctx.stroke();
+      ctx.lineWidth = 2;
+      for (const x of [x1, x2]) { ctx.beginPath(); ctx.moveTo(x, cy - 7); ctx.lineTo(x, cy + 7); ctx.stroke(); }
+      ctx.restore();
+    }
+
+    // コイル（真横から見た辺）
+    ctx.save();
+    ctx.strokeStyle = COL.coil; ctx.globalAlpha = 0.9; ctx.lineWidth = 7; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.restore();
+
+    // 角度 θ
+    const ra = clamp(half * 0.32, 14, 22);
+    ctx.save(); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.85;
+    ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + ra + 14, cy); ctx.stroke();
+    ctx.setLineDash([]); ctx.beginPath(); ctx.arc(cx, cy, ra, 0, -S.theta, true); ctx.stroke();
+    ctx.restore();
+    const dNow = degOf(S.theta);
+    if (dNow > 8 && dNow < 352) {
+      label(ctx, 'θ', cx + (ra + 12) * Math.cos(S.theta / 2), cy - (ra + 12) * Math.sin(S.theta / 2), '#e2e8f0', fs, 'center', false);
+    }
+
+    // トルク（円弧：長さ＝最大トルクに対する割合、矢印＝回る向き）
+    const rt = clamp(half * 0.72, 26, 70);
+    const ac = S.theta + Math.PI / 2;
+    if (p.Tmax > 0 && Math.abs(p.c) > 1e-6) {
+      const span = (Math.abs(p.T) / p.Tmax) * (Math.PI * 8 / 9);
+      const ccw = p.T > 0;
+      const a1 = ac - span / 2, a2 = ac + span / 2;
+      const start = ccw ? a1 : a2, end = ccw ? a2 : a1;
+      ctx.save();
+      ctx.strokeStyle = COL.torque; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(cx, cy, rt, -start, -end, ccw); ctx.stroke();
+      const ex = cx + rt * Math.cos(end), ey = cy - rt * Math.sin(end);
+      const tx = ccw ? -Math.sin(end) : Math.sin(end), ty = ccw ? -Math.cos(end) : Math.cos(end);
+      const nx = Math.cos(end), ny = -Math.sin(end), hd = 14;
+      ctx.fillStyle = COL.torque; ctx.beginPath();
+      ctx.moveTo(ex + tx * hd, ey + ty * hd);
+      ctx.lineTo(ex + nx * hd * 0.55, ey + ny * hd * 0.55);
+      ctx.lineTo(ex - nx * hd * 0.55, ey - ny * hd * 0.55);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+      const ca = Math.cos(ac), sa = Math.sin(ac);
+      const align = ca < -0.3 ? 'right' : ca > 0.3 ? 'left' : 'center';
+      const rr = rt + (align === 'center' ? 22 : 14);
+      label(ctx, 'トルク T', cx + rr * ca, cy - rr * sa, COL.torque, fs, align);
+    } else {
+      label(ctx, 'T = 0', cx + (rt * 0.6) * Math.cos(ac), cy - (rt * 0.6) * Math.sin(ac), COL.torque, fs);
+    }
+
+    // 回転軸
+    ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, 6, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(cx, cy, 2, 0, TAU); ctx.fill();
+
+    // 導体（⊙ 手前へ／⊗ 奥へ）
+    const conductor = (x, y, out) => {
+      ctx.fillStyle = '#7c2d12'; ctx.strokeStyle = COL.coil; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, rc, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 2.2;
+      if (out) { ctx.beginPath(); ctx.arc(x, y, rc * 0.28, 0, TAU); ctx.fill(); }
+      else {
+        const d = rc * 0.5;
+        ctx.beginPath(); ctx.moveTo(x - d, y - d); ctx.lineTo(x + d, y + d);
+        ctx.moveTo(x + d, y - d); ctx.lineTo(x - d, y + d); ctx.stroke();
+      }
+    };
+    conductor(x1, y1, p.s > 0);
+    conductor(x2, y2, p.s < 0);
+    const side = ux >= 0 ? 1 : -1;
+    label(ctx, '①', x1 + side * (rc + 14), y1, '#fff', fs);
+    label(ctx, '②', x2 - side * (rc + 14), y2, '#fff', fs);
+
+    // 力 F の矢印（θ を変えても長さは一定）
+    const d1 = up1 ? -1 : 1;
+    arrow(ctx, x1, y1 + d1 * rc, x1, y1 + d1 * (rc + fLen), COL.force, 5, 14);
+    arrow(ctx, x2, y2 - d1 * rc, x2, y2 - d1 * (rc + fLen), COL.force, 5, 14);
+    label(ctx, 'F', x1, clamp(y1 + d1 * (rc + fLen + 13), 12, h - 12), COL.force, fs + 1);
+    label(ctx, 'F', x2, clamp(y2 - d1 * (rc + fLen + 13), 12, h - 12), COL.force, fs + 1);
+
+    // 腕の長さの表示
+    if (S.showArm) {
+      const lx = Math.abs(x1 - cx) > 4 ? (cx + x1) / 2 : cx;
+      label(ctx, `腕 ${(p.arm * 100).toFixed(2)} cm`, lx, cy + 22, COL.arm, fs - 1);
+    }
+
+    // フレミングの左手の法則（導体①）
+    if (S.fleming) {
+      ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x1, y1, rc + 7, 0, TAU); ctx.stroke(); ctx.restore();
+      const k = w < 560 ? 0.8 : 1, bw = 190, bh = 132;
+      ctx.save();
+      ctx.translate(w - 10 - bw * k, 10); ctx.scale(k, k);
+      ctx.fillStyle = 'rgba(15,23,42,0.92)'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 1;
+      roundRect(ctx, 0, 0, bw, bh, 10); ctx.fill(); ctx.stroke();
+      label(ctx, 'フレミングの左手の法則（導体①）', bw / 2, 15, '#e2e8f0', 11, 'center', false);
+      const ox = 72, oy = 80, L = 40, out = p.s > 0;
+      arrow(ctx, ox, oy, ox + L, oy, COL.field, 3, 10);
+      arrow(ctx, ox, oy, ox, oy + (up1 ? -L : L), COL.force, 3, 10);
+      arrow(ctx, ox, oy, ox + (out ? -0.56 : 0.56) * L, oy + (out ? 0.56 : -0.56) * L, '#fff', 3, 10);
+      label(ctx, '人差し指 B', ox + L + 6, oy, COL.field, 11, 'left', false);
+      label(ctx, '親指 F', ox + 8, oy + (up1 ? -L + 4 : L - 4), COL.force, 11, 'left', false);
+      if (out) label(ctx, '中指 I（手前へ）', ox - 22, oy + 36, '#fff', 11, 'center', false);
+      else label(ctx, '中指 I（奥へ）', ox + 28, oy - 30, '#fff', 11, 'left', false);
+      ctx.restore();
+    }
+  }
+
+  // ===== T–θ グラフ =====
+  const GL = 60, GR = 14, GT = 16, GB = 28;
+  function drawGraph() {
+    const { ctx, w, h } = graph;
+    if (!w || !h) return;
+    ctx.clearRect(0, 0, w, h);
+    const p = physics();
+    const pw = w - GL - GR, ph = h - GT - GB;
+    const yMax = niceMax(p.Tmax * 1.05);
+    const X = d => GL + d / 360 * pw;
+    const Y = v => GT + ph / 2 - v / yMax * ph / 2;
+
+    ctx.lineWidth = 1; ctx.font = `11px ${FONT}`; ctx.textBaseline = 'middle';
+    for (const d of [0, 90, 180, 270, 360]) {
+      ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(X(d), GT); ctx.lineTo(X(d), GT + ph); ctx.stroke();
+      ctx.fillStyle = COL.sub; ctx.textAlign = 'center'; ctx.fillText(d + '°', X(d), GT + ph + 14);
+    }
+    for (const k of [-1, -0.5, 0, 0.5, 1]) {
+      ctx.strokeStyle = k === 0 ? '#64748b' : COL.grid;
+      ctx.beginPath(); ctx.moveTo(GL, Y(k * yMax)); ctx.lineTo(GL + pw, Y(k * yMax)); ctx.stroke();
+      ctx.fillStyle = COL.sub; ctx.textAlign = 'right'; ctx.fillText(tickFmt(k * yMax), GL - 6, Y(k * yMax));
+    }
+    ctx.save(); ctx.translate(12, GT + ph / 2); ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center'; ctx.fillStyle = COL.sub; ctx.fillText('T [N·m]', 0, 0); ctx.restore();
+
+    // 曲線
+    ctx.strokeStyle = COL.torque; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let d = 0; d <= 360; d++) {
+      const y = Y(torqueAtDeg(d, p.Tmax));
+      if (d === 0) ctx.moveTo(X(d), y); else ctx.lineTo(X(d), y);
+    }
+    ctx.stroke();
+
+    // いまの位置
+    const dNow = degOf(S.theta);
+    ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = '#e2e8f0'; ctx.globalAlpha = 0.6;
+    ctx.beginPath(); ctx.moveTo(X(dNow), GT); ctx.lineTo(X(dNow), GT + ph); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = COL.torque; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(X(dNow), Y(p.T), 6, 0, TAU); ctx.fill(); ctx.stroke();
+
+    ctx.font = `11px ${FONT}`; ctx.fillStyle = COL.sub; ctx.textAlign = 'left';
+    ctx.fillText('＋ 反時計回り', GL + 6, GT + 10);
+    ctx.fillText('− 時計回り', GL + 6, GT + ph - 10);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#e2e8f0'; ctx.font = `700 12px ${FONT}`;
+    ctx.fillText('T–θ グラフ' + (S.comm ? '（整流子あり）' : ''), GL + pw - 6, GT + 10);
+  }
+
+  // ===== 数値パネル =====
+  function updatePanel() {
+    const p = physics();
+    const deg = Math.round(degOf(S.theta)) % 360;
+    const zero = Math.abs(p.c) < 1e-6;
+
+    $('outT').innerHTML = fmtNum(Math.abs(p.T), true);
+    $('outDir').textContent = zero ? '回す力 0' : (p.T > 0 ? '反時計回り' : '時計回り');
+    const cStr = p.c < 0 ? `(${fmtFixed(p.c, 3)})` : fmtFixed(p.c, 3);
+    $('formula').innerHTML =
+      `T = N B I A cosθ<br>` +
+      `= ${S.N} × ${S.B.toFixed(2)} × ${S.I.toFixed(1)} × ${fmtNum(p.A, true)} × cos ${deg}°<br>` +
+      `= ${fmtNum(p.Tmax, true)} × ${cStr}<br>` +
+      `= <b>${fmtNum(p.Tmax * p.c, true)}</b> N·m`;
+    let note = '符号：＋は反時計回り、−は時計回り';
+    if (S.comm) note += `。整流子で半回転ごとに電流が入れかわるので、回る向きはいつも同じ（${S.reverse ? '時計回り' : '反時計回り'}）`;
+    else if (S.reverse) note += '。電流を反転しているので、実際に回る向きは式の符号と逆';
+    $('formulaNote').textContent = note + '。';
+
+    $('outF').innerHTML = fmtNum(p.F, true);
+    $('arrowNote').textContent = geom.arrowNote;
+    $('outArm').textContent = (p.arm * 100).toFixed(2);
+    $('outCos').textContent = fmtFixed(p.c, 3);
+    $('outDeg').textContent = deg + '°';
+    $('outTmax').innerHTML = fmtNum(p.Tmax, true);
+
+    const gT = Math.abs(p.T) / (G * 0.1) * 1000;
+    const gF = p.F / G * 1000;
+    $('feelT').innerHTML = zero
+      ? '回す力は <b>0</b>。ただし、導体にはたらく力 F は 0 ではありません（腕の長さが 0 のため）。'
+      : `長さ 10 cm の棒の先に <b>約 ${gStr(gT)}</b> のおもりを下げたのと同じくらいの回す力（${familiar(gT)}）`;
+    $('feelF').innerHTML = `辺1本にはたらく力 F は、<b>約 ${gStr(gF)}</b> のおもりの重さと同じ（${familiar(gF)}）`;
+
+    $('vA').innerHTML = `コイルの面積 A = l × b = ${(S.l * S.b).toFixed(1)} cm² = ${fmtNum(p.A, true)} m²`;
+    $('sTheta').value = deg;
+    $('vTheta').textContent = deg + '°';
+  }
+
+  // ===== 「手を離す」の動き =====
+  function step(dt) {
+    const n = 10, hh = dt / n;
+    for (let i = 0; i < n; i++) {
+      const p = physics();
+      const damp = 2 * ZETA * Math.sqrt(J * Math.max(p.Tmax, 1e-12));
+      S.omega = clamp(S.omega + (p.T - damp * S.omega) / J * hh, -OMEGA_MAX, OMEGA_MAX);
+      S.theta = norm(S.theta + S.omega * hh);
+    }
+    S.runTime += dt;
+    const p = physics();
+    if (!S.comm && S.runTime > 0.6 && Math.abs(S.omega) < 0.03 && Math.abs(p.T) < p.Tmax * 0.01) {
+      // 止まる位置（θ = 90° または 270°）にそろえる
+      const near90 = Math.abs(angDiff(S.theta, Math.PI / 2)) < Math.abs(angDiff(S.theta, Math.PI * 1.5));
+      S.running = false; S.omega = 0; S.theta = near90 ? Math.PI / 2 : Math.PI * 1.5; setRunUI();
+    }
+  }
+
+  // ===== 操作 =====
+  const bRun = $('bRun');
+  function setRunUI() {
+    bRun.textContent = S.running ? '■ 止める' : '▶ 手を離す';
+    bRun.classList.toggle('running', S.running);
+  }
+  function stopRun() {
+    if (S.running) { S.running = false; S.omega = 0; setRunUI(); }
+  }
+  function setTheta(a) { stopRun(); S.theta = norm(a); dirty = true; }
+
+  bRun.addEventListener('click', () => {
+    if (S.running) { stopRun(); S.theta = snap(S.theta); }
+    else { S.running = true; S.omega = 0; S.runTime = 0; S.theta = norm(S.theta + 0.002); setRunUI(); }
+    dirty = true;
+  });
+  $('bReset').addEventListener('click', () => setTheta(0));
+
+  function bindRange(id, key, fmt) {
+    const el = $(id), out = $('v' + id.slice(1));
+    const show = () => { out.textContent = fmt(S[key]); };
+    el.addEventListener('input', () => { S[key] = parseFloat(el.value); show(); dirty = true; });
+    show();
+  }
+  bindRange('sN', 'N', v => v + ' 回');
+  bindRange('sB', 'B', v => v.toFixed(2) + ' T');
+  bindRange('sI', 'I', v => v.toFixed(1) + ' A');
+  bindRange('sl', 'l', v => v.toFixed(1) + ' cm');
+  bindRange('sb', 'b', v => v.toFixed(1) + ' cm');
+  $('sTheta').addEventListener('input', e => setTheta(parseFloat(e.target.value) * Math.PI / 180));
+
+  const bindChk = (id, key) => $(id).addEventListener('change', e => { S[key] = e.target.checked; dirty = true; });
+  bindChk('cArm', 'showArm');
+  bindChk('cFleming', 'fleming');
+  bindChk('cReverse', 'reverse');
+  bindChk('cComm', 'comm');
+
+  // コイルをドラッグして回す
+  let drag = null;
+  function pointerAngle(e) {
+    const r = main.el.getBoundingClientRect();
+    const x = e.clientX - r.left - geom.cx, y = -(e.clientY - r.top - geom.cy);
+    return { phi: Math.atan2(y, x), dist: Math.hypot(x, y) };
+  }
+  main.el.addEventListener('pointerdown', e => {
+    const { phi, dist } = pointerAngle(e);
+    if (dist > geom.half + 60) return;
+    const dA = Math.abs(angDiff(phi, S.theta)), dB = Math.abs(angDiff(phi, S.theta + Math.PI));
+    drag = { offset: dA <= dB ? 0 : Math.PI, id: e.pointerId };
+    main.el.setPointerCapture(e.pointerId);
+    main.el.classList.add('dragging');
+    stopRun(); e.preventDefault();
+  });
+  main.el.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    S.theta = snap(pointerAngle(e).phi - drag.offset); dirty = true;
+  });
+  const endDrag = e => { if (drag && e.pointerId === drag.id) { drag = null; main.el.classList.remove('dragging'); } };
+  main.el.addEventListener('pointerup', endDrag);
+  main.el.addEventListener('pointercancel', endDrag);
+
+  // グラフをタップして角度を選ぶ
+  function graphSet(e) {
+    const r = graph.el.getBoundingClientRect();
+    const d = clamp((e.clientX - r.left - GL) / (graph.w - GL - GR) * 360, 0, 360);
+    setTheta(Math.round(d) * Math.PI / 180);
+  }
+  graph.el.addEventListener('pointerdown', graphSet);
+  graph.el.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && e.buttons === 1) graphSet(e); });
+
+  // ===== 描画ループ =====
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (S.running) { step(dt); dirty = true; }
+    if (dirty) { dirty = false; drawMain(); drawGraph(); updatePanel(); }
+    requestAnimationFrame(loop);
+  }
+  setRunUI();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
